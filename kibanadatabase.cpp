@@ -11,23 +11,31 @@ KibanaDatabase::~KibanaDatabase()
 }
 
 void KibanaDatabase::Init() {
+    m_manager = new QNetworkAccessManager();
     databaseName= "KibanaLog.db";
 
     qDebug() << "creating database...";
     CreateDatabase();
 
-    m_manager = new QNetworkAccessManager();
-    connect(m_manager, SIGNAL(finished(QNetworkReply    *)), this, SLOT(slot_replyFinished(QNetworkReply*)));
-
     QString kibana_url = "http://myou.cvte.com/grail/api/query/sql";
-    // 获取指定日期日志
-    QString query_url = "?sql=SELECT * FROM log_grail_pro_cros_28762406_2019_05_26";
-    QNetworkRequest request;
-    request.setUrl(kibana_url + query_url);
-    request.setRawHeader("X-DATA-ID", "cros_28762406");
+    QString query_url = "?sql=SELECT * FROM log_grail_pro_cros_28762406_";
 
-    //发送请求
-    m_manager->get(request);
+    // 默认获取过去7天日志，并保存到本地数据库
+    for (int i = 0; i < 7; i++) {
+        QString date = QDate::currentDate().addDays(-i).toString("yyyy_MM_dd");
+        qDebug() << "Getting date on " + date;
+
+        QString final_url = kibana_url + query_url + date;
+        QNetworkRequest request;
+        request.setUrl(final_url);
+        request.setRawHeader("X-DATA-ID", "cros_28762406");
+
+        // 发送请求
+        m_manager->get(request);
+    }
+
+    // 信号
+    connect(m_manager, SIGNAL(finished(QNetworkReply *)), this, SLOT(slot_replyFinished(QNetworkReply*)));
 }
 
 void KibanaDatabase::slot_replyFinished(QNetworkReply *reply)
@@ -65,6 +73,7 @@ void KibanaDatabase::SplitJsonFromRecvData(QByteArray recvData) {
         QJsonParseError jsonError;
         QJsonDocument jsonDoc(QJsonDocument::fromJson(curData, &jsonError));
         if(jsonError.error != QJsonParseError::NoError) {
+            qDebug() << curData;
             qDebug() << jsonError.errorString();
             continue;
         }

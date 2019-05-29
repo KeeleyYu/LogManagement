@@ -36,6 +36,8 @@ MainWidget::MainWidget(QWidget *parent)
     m_refreshPushButton = new QPushButton();
     m_refreshPushButton->setText("Refresh");
 
+
+
     m_errorRadioButton = new QRadioButton();
     m_warningRadioButton = new QRadioButton();
     m_errorRadioButton->setChecked(true);

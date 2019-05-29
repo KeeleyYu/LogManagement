@@ -8,6 +8,7 @@
 #include <QTextCodec>
 #include <QString>
 #include <QUrl>
+#include <QDate>
 
 #include <QJsonObject>
 #include <QJsonParseError>
@@ -27,6 +28,7 @@ public:
     bool CreateDatabase();
     bool InsertDatabase(QJsonObject rootObj);
     void SplitJsonFromRecvData(QByteArray recvData);
+
     QString getDatabaseName() const;
     QSqlDatabase getSqlDatabase() const;
 
