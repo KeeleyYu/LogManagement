@@ -1,34 +1,32 @@
 #include "KibanaDatabase.h"
 
 KibanaDatabase::KibanaDatabase(QWidget *parent)
-    : QWidget(parent)
-{
+    : QWidget(parent) {
+    tableName = "LogInfo";
+    databaseName = "KibanaLog.db";
+    kibana_url = "http://myou.cvte.com/grail/api/query/sql";
+    deviceName = "log_grail_pro_cros_28762406_";
+    query_url = "?sql=SELECT * FROM " + deviceName;
+    xDataId = "cros_28762406";
 }
 
-KibanaDatabase::~KibanaDatabase()
-{
+KibanaDatabase::~KibanaDatabase() {}
 
-}
-
-void KibanaDatabase::Init() {
+void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
     m_manager = new QNetworkAccessManager();
-    databaseName= "KibanaLog.db";
+    for (int i = 0; i <= fromDate.daysTo(toDate); i++) {
+        QDate curDate = fromDate.addDays(i);
+        if (QueryDateIsExist(curDate)) {
+            qDebug() << curDate.toString("yyyy/MM/dd") + " exists.";
+            continue;
+        }
+        QString dateStr = curDate.toString("yyyy_MM_dd");
+        qDebug() << "Getting data on " + dateStr + "...";
 
-    qDebug() << "creating database...";
-    CreateDatabase();
-
-    QString kibana_url = "http://myou.cvte.com/grail/api/query/sql";
-    QString query_url = "?sql=SELECT * FROM log_grail_pro_cros_28762406_";
-
-    // 默认获取过去7天日志，并保存到本地数据库
-    for (int i = 0; i < 7; i++) {
-        QString date = QDate::currentDate().addDays(-i).toString("yyyy_MM_dd");
-        qDebug() << "Getting date on " + date;
-
-        QString final_url = kibana_url + query_url + date;
+        QString final_url = kibana_url + query_url + dateStr;
         QNetworkRequest request;
         request.setUrl(final_url);
-        request.setRawHeader("X-DATA-ID", "cros_28762406");
+        request.setRawHeader("X-DATA-ID", xDataId.toLocal8Bit().data());
 
         // 发送请求
         m_manager->get(request);
@@ -38,20 +36,18 @@ void KibanaDatabase::Init() {
     connect(m_manager, SIGNAL(finished(QNetworkReply *)), this, SLOT(slot_replyFinished(QNetworkReply*)));
 }
 
-void KibanaDatabase::slot_replyFinished(QNetworkReply *reply)
-{
+void KibanaDatabase::slot_replyFinished(QNetworkReply *reply) {
     QTextCodec *codec = QTextCodec::codecForName("utf8");
-        //使用utf8编码, 这样可以显示中文
+    //使用utf8编码, 这样可以显示中文
     QByteArray recvData = reply->readAll();
     QString recvStr = codec->toUnicode(recvData);
-    qDebug() << recvStr;
-    reply->deleteLater();//最后要释放replay对象
-    qDebug() << "received data size: " << recvData.size();
-    qDebug() << "transferred to str size: " << recvStr.size();
 
-    qDebug() << "Parsing data...";
+    //最后要释放replay对象
+    reply->deleteLater();
+    reply = nullptr;
+
     SplitJsonFromRecvData(recvData);
-    qDebug() << "Parsing data finished.";
+    qDebug() << "Getting data finished.";
 }
 
 void KibanaDatabase::SplitJsonFromRecvData(QByteArray recvData) {
@@ -61,20 +57,18 @@ void KibanaDatabase::SplitJsonFromRecvData(QByteArray recvData) {
     // 截取当前JSON
     for (; startIndex != -1; startIndex = recvData.indexOf("{", endIndex)) {
         endIndex = recvData.indexOf("}}", startIndex);
-        //QString curData = recvData.mid(startIndex, endIndex - startIndex + 2);
         QByteArray curData;
         for (int i = startIndex; i < endIndex + 2; i++) {
             if (recvData[i] == '\\')
                     continue;
             curData.append(recvData[i]);
         }
-        //qDebug() << curData;
         // 转化为JSON对象
         QJsonParseError jsonError;
         QJsonDocument jsonDoc(QJsonDocument::fromJson(curData, &jsonError));
         if(jsonError.error != QJsonParseError::NoError) {
-            qDebug() << curData;
-            qDebug() << jsonError.errorString();
+            // qDebug() << curData;
+            // qDebug() << jsonError.errorString();
             continue;
         }
         QJsonObject rootObj = jsonDoc.object();
@@ -88,14 +82,17 @@ bool KibanaDatabase::InsertDatabase(QJsonObject rootObj) {
     QJsonObject subObj = rootObj.value("_source").toObject();
 
     QSqlQuery jsonQuery;
-    QString insertSql = "INSERT INTO LogInfo"
-                        "(_id, platformVer, logLevel, logMsg) "
-                        "VALUES(?, ?, ?, ?)";
+    QString insertSql = "INSERT INTO " + tableName +
+                        " (_id, platformVer, logLevel, logMsg, datestamp) "
+                        "VALUES(?, ?, ?, ?, ?)";
     jsonQuery.prepare(insertSql);
     jsonQuery.addBindValue(rootObj.value("_id").toString());
     jsonQuery.addBindValue(subObj.value("platformVer").toString());
     jsonQuery.addBindValue(subObj.value("logLevel").toString());
     jsonQuery.addBindValue(subObj.value("logMsg").toString());
+    // @timestamp:"yyyy-mm-ddThh:mm:ss.mmmZ"
+    // _index:"log_grail_pro_cros_28762406_yyyy_mm_dd"
+    jsonQuery.addBindValue(rootObj.value("_index").toString().mid(deviceName.length()));
     if (!jsonQuery.exec()) {
         //qDebug() << "Insert db error!" << jsonQuery.lastError();
         return false;
@@ -115,7 +112,7 @@ bool KibanaDatabase::CreateDatabase() {
 
     // create table
     QSqlQuery jsonQuery;
-    if (!jsonQuery.exec("create table LogInfo ("
+    if (!jsonQuery.exec("create table " + tableName + " ("
                    "_index varchar(50),"
                    "_type varchar(10),"
                    "_id varchar(50) primary key,"
@@ -132,6 +129,7 @@ bool KibanaDatabase::CreateDatabase() {
                    "deviceMac varchar(50),"
                    "browserVer varchar(50),"
                    "timestamp varchar(50),"
+                   "datestamp varchar(50)," // @timestamp
                    "serialNumber varchar(50),"
                    "_realCountry varchar(10),"
                    "method varchar(50),"
@@ -156,4 +154,18 @@ QString KibanaDatabase::getDatabaseName() const{
 
 QSqlDatabase KibanaDatabase::getSqlDatabase() const {
     return m_sqlDatabase;
+}
+
+bool KibanaDatabase::QueryDateIsExist(QDate date) {
+    QSqlQuery sqlQuery(databaseName);
+    QStringList logMsgList;
+    QString platformVerSql = "select datestamp from LogInfo "
+                             "where datestamp=:date";
+    sqlQuery.prepare(platformVerSql);
+    sqlQuery.bindValue(":date", date.toString("yyyy_MM_dd"));
+    if (!sqlQuery.exec())
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
+    if (sqlQuery.next())
+        return true;
+    return false;
 }

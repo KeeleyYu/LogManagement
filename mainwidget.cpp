@@ -4,8 +4,8 @@ QT_CHARTS_USE_NAMESPACE
 
 MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent), m_logLevel("ERROR"), m_grade(1) {
-    // 在线获取日志数据，并存入数据库
-    m_kibanaDatabase.Init();
+    // 打开数据库
+    m_kibanaDatabase.CreateDatabase();
 
     // 创建pie chart
     m_pieChart = new KibanaChart();
@@ -39,12 +39,12 @@ MainWidget::MainWidget(QWidget *parent)
     // 创建日期检索键
     QDate minimumDate(2000, 1, 1), maximumDate(2100, 1, 1);
     m_minimumDateEdit = new QDateEdit;
-    m_minimumDateEdit->setDisplayFormat("yyyy/MM/dd");
+    m_minimumDateEdit->setDisplayFormat("yyyy/MM/dd/");
     m_minimumDateEdit->setDateRange(minimumDate, maximumDate);
     m_minimumDateEdit->setDate(QDate::currentDate());
 
     m_maximumDateEdit = new QDateEdit;
-    m_maximumDateEdit->setDisplayFormat("yyyy/MM/dd");
+    m_maximumDateEdit->setDisplayFormat("yyyy/MM/dd/");
     m_maximumDateEdit->setDateRange(minimumDate, maximumDate);
     m_maximumDateEdit->setDate(QDate::currentDate());
 
@@ -137,6 +137,7 @@ MainWidget::MainWidget(QWidget *parent)
 
     // 信号
     connect(m_refreshPushButton, &QPushButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
+    connect(m_dateSearchPushButton, &QPushButton::clicked, this, &MainWidget::QueryByDate);
     connect(m_errorRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_warningRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_logLevelSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
@@ -178,7 +179,7 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
     sqlQuery.prepare(platformVerSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
     if (!sqlQuery.exec()) {
-        qDebug() << sqlQuery.lastError() << 1;
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
     }
     while (sqlQuery.next()) {
@@ -194,7 +195,7 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
     sqlQuery.prepare(logMsgSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
     if (!sqlQuery.exec()) {
-        qDebug() << sqlQuery.lastError() << 2;
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
     }
     for (int i(0); i < m_logMsgLimit->value(); i++) {
@@ -214,7 +215,7 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
         tmp_sqlQuery.bindValue(":loglevel", m_logLevel);
         tmp_sqlQuery.bindValue(":logmsg", thisLogMsg);
         if (!tmp_sqlQuery.exec()) {
-            qDebug() << tmp_sqlQuery.lastError() << 3;
+            qDebug() << __FUNCTION__ << tmp_sqlQuery.lastError();
             return;
         }
         while (tmp_sqlQuery.next()) {
@@ -303,7 +304,7 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel) {
         return;
     }
     if (!sqlQuery.exec()) {
-        qDebug() << sqlQuery.lastError();
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
     }
 
@@ -359,7 +360,6 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel) {
 const QStringList MainWidget::AllLogTargetList(QString logTarget) {
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     QStringList logMsgList;
-    // 得到各logMsg
     QString platformVerSql = "select distinct " + logTarget +
                              " from LogInfo "
                              "where logLevel=:loglevel "
@@ -367,11 +367,16 @@ const QStringList MainWidget::AllLogTargetList(QString logTarget) {
     sqlQuery.prepare(platformVerSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
     if (!sqlQuery.exec()) {
-        qDebug() << sqlQuery.lastError() << 1;
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return logMsgList;
     }
     while (sqlQuery.next()) {
         logMsgList << sqlQuery.value(0).toString();
     }
     return logMsgList;
+}
+
+void MainWidget::QueryByDate() {
+    m_kibanaDatabase.QueryByDate(m_minimumDateEdit->date(), m_maximumDateEdit->date());
+    UpdateSwitchLogLevelSettings();
 }

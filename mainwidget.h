@@ -63,10 +63,16 @@ public Q_SLOTS:
     // logLevel变化导致logMsg搜索变化槽
     void UpdateLogMsgSearchContents();
 
+    // 更新pie和bar图
     void UpdatePieBarSettingsSlice(QPieSlice *slice);
     void UpdatePieBarSettingsString(QString sliceLabel);
 
+    // 得到所有logMsg或platformVer
     const QStringList AllLogTargetList(QString logTarget);
+
+    //
+    void QueryByDate();
+
 public:
     explicit MainWidget(QWidget *parent = 0);
 

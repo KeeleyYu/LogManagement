@@ -24,7 +24,10 @@ class KibanaDatabase: public QWidget
 public:
     KibanaDatabase(QWidget *parent = 0);
     ~KibanaDatabase();
-    void Init();
+
+    void QueryByDate(QDate fromDate, QDate toDate);
+    bool QueryDateIsExist(QDate date);
+
     bool CreateDatabase();
     bool InsertDatabase(QJsonObject rootObj);
     void SplitJsonFromRecvData(QByteArray recvData);
@@ -36,9 +39,19 @@ private Q_SLOTS:
     void slot_replyFinished(QNetworkReply *reply);
 
 private:
-    // 表名："LogInfo"
-    // 数据库名字："KibanaLog.db"
+    // 表名（not used）
+    QString tableName;
+    // 数据库名字
     QString databaseName;
+    // 日志入口链接
+    QString kibana_url;
+    // 查询链接
+    QString query_url;
+    // X-DATA-ID头部信息
+    QString xDataId;
+    // 设备名称：
+    QString deviceName;
+
     QNetworkAccessManager *m_manager;
     QSqlDatabase m_sqlDatabase;
 };
