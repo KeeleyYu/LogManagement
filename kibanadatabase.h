@@ -33,6 +33,7 @@ public:
     void SplitJsonFromRecvData(QByteArray recvData);
 
     QString getDatabaseName() const;
+    QString getTableName() const;
     QSqlDatabase getSqlDatabase() const;
 
 private Q_SLOTS:

@@ -152,6 +152,10 @@ QString KibanaDatabase::getDatabaseName() const{
     return databaseName;
 }
 
+QString KibanaDatabase::getTableName() const {
+    return tableName;
+}
+
 QSqlDatabase KibanaDatabase::getSqlDatabase() const {
     return m_sqlDatabase;
 }

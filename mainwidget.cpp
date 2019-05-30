@@ -29,9 +29,6 @@ MainWidget::MainWidget(QWidget *parent)
     m_barChartView = new KibanaChartView(m_barChart);
     m_barChartView->setRenderHint(QPainter::Antialiasing);
 
-    // 创建pie series 和 bar series
-    UpdatePieBarSettingsString(m_logLevel);
-
     // 创建刷新键
     m_refreshPushButton = new QPushButton();
     m_refreshPushButton->setText("Refresh");
@@ -147,6 +144,9 @@ MainWidget::MainWidget(QWidget *parent)
             this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
+
+    // 创建pie series 和 bar series
+    UpdatePieBarSettingsString(m_logLevel);
 }
 
 void MainWidget::UpdateSwitchLogLevelSettings() {
@@ -173,11 +173,14 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     // 得到各platformVer（用于插入x轴）
     QString platformVerSql = "select distinct platformVer "
-                             "from LogInfo "
-                             "where logLevel=:loglevel "
+                             "from " + m_kibanaDatabase.getTableName() +
+                             " where logLevel=:loglevel "
+                             "and datestamp between :fromdate and :todate "
                              "order by platformVer";
     sqlQuery.prepare(platformVerSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     if (!sqlQuery.exec()) {
         qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
@@ -190,10 +193,13 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
     QString logMsgSql = "select logMsg "
                         "from LogInfo "
                         "where logLevel=:loglevel "
+                        "and datestamp between :fromdate and :todate "
                         "group by logMsg "
                         "order by count(*) desc";
     sqlQuery.prepare(logMsgSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     if (!sqlQuery.exec()) {
         qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
@@ -210,10 +216,13 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
                             "from LogInfo "
                             "where logLevel=:loglevel and "
                             "logMsg=:logmsg "
+                            "and datestamp between :fromdate and :todate "
                             "group by platformVer ";
         tmp_sqlQuery.prepare(selectSql);
         tmp_sqlQuery.bindValue(":loglevel", m_logLevel);
         tmp_sqlQuery.bindValue(":logmsg", thisLogMsg);
+        tmp_sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+        tmp_sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
         if (!tmp_sqlQuery.exec()) {
             qDebug() << __FUNCTION__ << tmp_sqlQuery.lastError();
             return;
@@ -276,29 +285,38 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel) {
         QString selectSql = "select platformVer, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel "
+                            "and datestamp between :fromdate and :todate "
                             "group by platformVer";
         sqlQuery.prepare(selectSql);
         sqlQuery.bindValue(":loglevel", m_logLevel);
+        sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+        sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     } else if (m_grade == 2) {
         // 得到该platformVer的各logMsg个数
         QString selectSql = "select logMsg, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel and "
                             "platformVer=:platformver "
+                            "and datestamp between :fromdate and :todate "
                             "group by logMsg";
         sqlQuery.prepare(selectSql);
         sqlQuery.bindValue(":loglevel", m_logLevel);
         sqlQuery.bindValue(":platformver", sliceLabel);
+        sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+        sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     } else if (m_grade == 3) {
         // 得到该logMsg的各platformVer个数
         QString selectSql = "select platformVer, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel and "
                             "logMsg=:logmsg "
+                            "and datestamp between :fromdate and :todate "
                             "group by platformVer";
         sqlQuery.prepare(selectSql);
         sqlQuery.bindValue(":loglevel", m_logLevel);
         sqlQuery.bindValue(":logmsg", sliceLabel);
+        sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+        sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     } else {
         qDebug() << "grade wrong!";
         return;
