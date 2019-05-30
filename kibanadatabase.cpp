@@ -17,7 +17,7 @@ void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
     for (int i = 0; i <= fromDate.daysTo(toDate); i++) {
         QDate curDate = fromDate.addDays(i);
         if (QueryDateIsExist(curDate)) {
-            qDebug() << curDate.toString("yyyy/MM/dd") + " exists.";
+            //qDebug() << curDate.toString("yyyy/MM/dd") + " exists.";
             continue;
         }
         QString dateStr = curDate.toString("yyyy_MM_dd");

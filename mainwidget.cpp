@@ -13,6 +13,7 @@ MainWidget::MainWidget(QWidget *parent)
     m_pieChart->setAnimationOptions(QChart::AllAnimations);
     m_pieChart->legend()->setVisible(true);
     m_pieChart->legend()->setAlignment(Qt::AlignRight);
+    m_pieChart->legend()->setShowToolTips(true);
 
     // 创建pie chartview
     m_pieChartView = new QChartView(m_pieChart);
@@ -24,6 +25,7 @@ MainWidget::MainWidget(QWidget *parent)
     m_barChart->setAnimationOptions(QChart::AllAnimations);
     m_barChart->legend()->setVisible(true);
     m_barChart->legend()->setAlignment(Qt::AlignRight);
+    m_barChart->legend()->setShowToolTips(true);
 
     // 创建bar chartview
     m_barChartView = new KibanaChartView(m_barChart);
@@ -381,9 +383,12 @@ const QStringList MainWidget::AllLogTargetList(QString logTarget) {
     QString platformVerSql = "select distinct " + logTarget +
                              " from LogInfo "
                              "where logLevel=:loglevel "
+                             "and datestamp between :fromdate and :todate "
                              "order by " + logTarget;
     sqlQuery.prepare(platformVerSql);
     sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     if (!sqlQuery.exec()) {
         qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return logMsgList;
