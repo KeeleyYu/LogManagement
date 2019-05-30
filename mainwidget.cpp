@@ -25,32 +25,48 @@ MainWidget::MainWidget(QWidget *parent)
     m_barChart->legend()->setVisible(true);
     m_barChart->legend()->setAlignment(Qt::AlignRight);
 
-    // 创建pie series 和 bar series
-    UpdatePieBarSettingsString(m_logLevel);
-
     // 创建bar chartview
     m_barChartView = new KibanaChartView(m_barChart);
     m_barChartView->setRenderHint(QPainter::Antialiasing);
 
-    // 设置chart settings
+    // 创建pie series 和 bar series
+    UpdatePieBarSettingsString(m_logLevel);
+
+    // 创建刷新键
     m_refreshPushButton = new QPushButton();
     m_refreshPushButton->setText("Refresh");
 
+    // 创建日期检索键
+    QDate minimumDate(2000, 1, 1), maximumDate(2100, 1, 1);
+    m_minimumDateEdit = new QDateEdit;
+    m_minimumDateEdit->setDisplayFormat("yyyy/MM/dd");
+    m_minimumDateEdit->setDateRange(minimumDate, maximumDate);
+    m_minimumDateEdit->setDate(QDate::currentDate());
 
+    m_maximumDateEdit = new QDateEdit;
+    m_maximumDateEdit->setDisplayFormat("yyyy/MM/dd");
+    m_maximumDateEdit->setDateRange(minimumDate, maximumDate);
+    m_maximumDateEdit->setDate(QDate::currentDate());
 
+    m_dateSearchPushButton = new QPushButton();
+    m_dateSearchPushButton->setText("Search");
+
+    // 创建logLevel选择键
     m_errorRadioButton = new QRadioButton();
     m_warningRadioButton = new QRadioButton();
     m_errorRadioButton->setChecked(true);
-
-    m_logLevelSearch = new QComboBox();
-    m_logLevelSearch->setEditable(true);
-    m_logLevelSearch->addItems(AllLogTargetList("platformVer"));
-    m_logLevelSearch->setMaximumWidth(200);
 
     m_logLevelGroup = new QButtonGroup();
     m_logLevelGroup->addButton(m_errorRadioButton, 0);
     m_logLevelGroup->addButton(m_warningRadioButton, 1);
 
+    // 创建logLevel检索键
+    m_logLevelSearch = new QComboBox();
+    m_logLevelSearch->setEditable(true);
+    m_logLevelSearch->addItems(AllLogTargetList("platformVer"));
+    m_logLevelSearch->setMaximumWidth(200);
+
+    // 创建logMsg对比键
     m_logMsgLimitInvisible = new QCheckBox();
     m_logMsgLimitInvisible->setCheckState(Qt::Checked);
 
@@ -61,15 +77,24 @@ MainWidget::MainWidget(QWidget *parent)
     m_logMsgLimit->setValue(0);
     m_logMsgLimit->setReadOnly(true);
 
+    // 创建logMsg检索键
     m_logMsgSearch = new QComboBox();
     m_logMsgSearch->setEditable(true);
     m_logMsgSearch->addItems(AllLogTargetList("logMsg"));
     m_logMsgSearch->setMaximumWidth(200);
 
+    // 创建formLayout
     QFormLayout *chartSettingsLayout = new QFormLayout();
     chartSettingsLayout->addRow(m_refreshPushButton);
     QGroupBox *chartSettings = new QGroupBox("Settings");
     chartSettings->setLayout(chartSettingsLayout);
+
+    QFormLayout *dateSettingsLayout = new QFormLayout();
+    dateSettingsLayout->addRow("From", m_minimumDateEdit);
+    dateSettingsLayout->addRow("To", m_maximumDateEdit);
+    dateSettingsLayout->addRow(m_dateSearchPushButton);
+    QGroupBox *dateSettings = new QGroupBox("Date Query");
+    dateSettings->setLayout(dateSettingsLayout);
 
     QFormLayout *logLevelSettingsLayout = new QFormLayout();
     logLevelSettingsLayout->addRow("ERROR", m_errorRadioButton);
@@ -93,6 +118,23 @@ MainWidget::MainWidget(QWidget *parent)
     QGroupBox *logMsgSearchSettings = new QGroupBox("LogMsg Search");
     logMsgSearchSettings->setLayout(logMsgSearchSettingsLayout);
 
+    // 创建boxLayout
+    QVBoxLayout *settingsLayout = new QVBoxLayout();
+    settingsLayout->addWidget(chartSettings);
+    settingsLayout->addWidget(dateSettings);
+    settingsLayout->addWidget(logLevelSettings);
+    settingsLayout->addWidget(platformVerSearchSettings);
+    settingsLayout->addWidget(logMsgSettings);
+    settingsLayout->addWidget(logMsgSearchSettings);
+    settingsLayout->addStretch();
+
+    // 创建gridLayout
+    QGridLayout *baseLayout = new QGridLayout();
+    baseLayout->addLayout(settingsLayout, 0, 0);
+    baseLayout->addWidget(m_barChartView, 0, 1);
+    baseLayout->addWidget(m_pieChartView, 0, 2);
+    setLayout(baseLayout);
+
     // 信号
     connect(m_refreshPushButton, &QPushButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_errorRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
@@ -104,21 +146,6 @@ MainWidget::MainWidget(QWidget *parent)
             this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
-
-    // 创建框架
-    QVBoxLayout *settingsLayout = new QVBoxLayout();
-    settingsLayout->addWidget(chartSettings);
-    settingsLayout->addWidget(logLevelSettings);
-    settingsLayout->addWidget(platformVerSearchSettings);
-    settingsLayout->addWidget(logMsgSettings);
-    settingsLayout->addWidget(logMsgSearchSettings);
-    settingsLayout->addStretch();
-
-    QGridLayout *baseLayout = new QGridLayout();
-    baseLayout->addLayout(settingsLayout, 0, 0);
-    baseLayout->addWidget(m_barChartView, 0, 1);
-    baseLayout->addWidget(m_pieChartView, 0, 2);
-    setLayout(baseLayout);
 }
 
 void MainWidget::UpdateSwitchLogLevelSettings() {

@@ -27,7 +27,7 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QComboBox>
-#include <QtAlgorithms>
+#include <QDateEdit>
 
 QT_BEGIN_NAMESPACE
 class QRadioButton;
@@ -76,22 +76,27 @@ private:
 
     KibanaDatabase m_kibanaDatabase;
 
-    KibanaChart *m_pieChart;
     KibanaChart *m_barChart;
-
-    QChartView *m_pieChartView;
+    KibanaChart *m_pieChart;
     KibanaChartView *m_barChartView;
+    QChartView *m_pieChartView;
 
     QPieSeries *m_errorSeries;
     QPieSeries *m_warningSeries;
 
+    QPushButton *m_refreshPushButton;
+
+    QDateEdit *m_minimumDateEdit;
+    QDateEdit *m_maximumDateEdit;
+    QPushButton *m_dateSearchPushButton;
+
     QButtonGroup *m_logLevelGroup;
     QRadioButton *m_errorRadioButton;
     QRadioButton *m_warningRadioButton;
-    QPushButton *m_refreshPushButton;
 
     QCheckBox *m_logMsgLimitInvisible;
     QSpinBox *m_logMsgLimit;
+
     QComboBox *m_logMsgSearch;
     QComboBox *m_logLevelSearch;
 };
