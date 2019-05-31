@@ -59,11 +59,12 @@ MainWidget::MainWidget(QWidget *parent)
     m_logLevelGroup->addButton(m_errorRadioButton, 0);
     m_logLevelGroup->addButton(m_warningRadioButton, 1);
 
-    // 创建logLevel检索键
-    m_logLevelSearch = new QComboBox();
-    m_logLevelSearch->setEditable(true);
-    m_logLevelSearch->addItems(AllLogTargetList("platformVer"));
-    m_logLevelSearch->setMaximumWidth(200);
+    // 创建platformVer检索键
+    m_platformVerSearch = new QComboBox();
+    m_platformVerSearch->setEditable(true);
+    m_platformVerSearch->setMaximumWidth(200);
+    UpdateLogTargetList("platformVer");
+    m_platformVerSearch->addItems(m_platformVerList);
 
     // 创建logMsg对比键
     m_logMsgLimitInvisible = new QCheckBox();
@@ -79,8 +80,10 @@ MainWidget::MainWidget(QWidget *parent)
     // 创建logMsg检索键
     m_logMsgSearch = new QComboBox();
     m_logMsgSearch->setEditable(true);
-    m_logMsgSearch->addItems(AllLogTargetList("logMsg"));
     m_logMsgSearch->setMaximumWidth(200);
+    UpdateLogTargetList("logMsg");
+    m_logMsgSearch->addItems(m_logMsgList);
+
 
     // 创建formLayout
     QFormLayout *chartSettingsLayout = new QFormLayout();
@@ -102,7 +105,7 @@ MainWidget::MainWidget(QWidget *parent)
     logLevelSettings->setLayout(logLevelSettingsLayout);
 
     QFormLayout *platformVerSearchSettingsLayout = new QFormLayout();
-    platformVerSearchSettingsLayout->addRow(m_logLevelSearch);
+    platformVerSearchSettingsLayout->addRow(m_platformVerSearch);
     QGroupBox *platformVerSearchSettings = new QGroupBox("PlatformVer Search");
     platformVerSearchSettings->setLayout(platformVerSearchSettingsLayout);
 
@@ -139,7 +142,7 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_dateSearchPushButton, &QPushButton::clicked, this, &MainWidget::QueryByDate);
     connect(m_errorRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_warningRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
-    connect(m_logLevelSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchPlatformVerSearchSettings);
     connect(m_logMsgLimitInvisible, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_logMsgLimit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
@@ -147,15 +150,16 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
 
-    // 创建pie series 和 bar series
-    UpdatePieBarSettingsString(m_logLevel);
+    // 初始化
+    UpdateSwitchLogLevelSettings();
 }
 
 void MainWidget::UpdateSwitchLogLevelSettings() {
     m_logLevel = (m_logLevelGroup->checkedId() == 0) ? "ERROR" : "WARNING";
 
-    UpdateLogMsgSearchContents();
-    UpdatePlatformVerSearchContents();
+    UpdateSwitchSearchSettings(m_logMsgSearch, "logMsg");
+    UpdateSwitchSearchSettings(m_platformVerSearch, "platformVer");
+
     if (!m_logMsgLimitInvisible->isChecked()) {
         m_logMsgLimit->setReadOnly(false);
         UpdateSwitchLogMsgTopSettings();
@@ -256,7 +260,7 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
 
 void MainWidget::UpdateSwitchPlatformVerSearchSettings() {
     m_grade = 2;
-    UpdatePieBarSettingsString(m_logLevelSearch->currentText());
+    UpdatePieBarSettingsString(m_platformVerSearch->currentText());
 }
 
 void MainWidget::UpdateSwitchLogMsgSearchSettings() {
@@ -264,16 +268,24 @@ void MainWidget::UpdateSwitchLogMsgSearchSettings() {
     UpdatePieBarSettingsString(m_logMsgSearch->currentText());
 }
 
-void MainWidget::UpdateLogMsgSearchContents() {
-    while (m_logMsgSearch->count())
-        m_logMsgSearch->removeItem(0);
-    m_logMsgSearch->addItems(AllLogTargetList("logMsg"));
-}
+void MainWidget::UpdateSwitchSearchSettings(QComboBox *searchBox, QString searchTarget) {
+    while (searchBox->count())
+        searchBox->removeItem(0);
 
-void MainWidget::UpdatePlatformVerSearchContents() {
-    while (m_logLevelSearch->count())
-        m_logLevelSearch->removeItem(0);
-    m_logLevelSearch->addItems(AllLogTargetList("platformVer"));
+    UpdateLogTargetList(searchTarget);
+    QStringList searchList;
+    if (searchTarget == "logMsg")
+        searchList = m_logMsgList;
+    else if (searchTarget == "platformVer")
+        searchList = m_platformVerList;
+
+    searchBox->addItems(searchList);
+
+    QCompleter *completer = new QCompleter(searchList);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setFilterMode(Qt::MatchContains);
+    completer->setCompletionMode(QCompleter::PopupCompletion);
+    searchBox->setCompleter(completer);
 }
 
 void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
@@ -377,7 +389,7 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel) {
     }
 }
 
-const QStringList MainWidget::AllLogTargetList(QString logTarget) {
+void MainWidget::UpdateLogTargetList(QString logTarget) {
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     QStringList logMsgList;
     QString platformVerSql = "select distinct " + logTarget +
@@ -391,12 +403,15 @@ const QStringList MainWidget::AllLogTargetList(QString logTarget) {
     sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
     if (!sqlQuery.exec()) {
         qDebug() << __FUNCTION__ << sqlQuery.lastError();
-        return logMsgList;
+        return;
     }
     while (sqlQuery.next()) {
         logMsgList << sqlQuery.value(0).toString();
     }
-    return logMsgList;
+    if (logTarget == "logMsg")
+        m_logMsgList = logMsgList;
+    else if (logTarget == "platformVer")
+        m_platformVerList = logMsgList;
 }
 
 void MainWidget::QueryByDate() {

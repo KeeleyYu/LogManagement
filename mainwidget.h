@@ -28,6 +28,7 @@
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QDateEdit>
+#include <QCompleter>
 
 QT_BEGIN_NAMESPACE
 class QRadioButton;
@@ -58,19 +59,17 @@ public Q_SLOTS:
     void UpdateSwitchPlatformVerSearchSettings();
     void UpdateSwitchLogMsgSearchSettings();
 
-    // logLevel变化导致platformVer搜索变化槽
-    void UpdatePlatformVerSearchContents();
-    // logLevel变化导致logMsg搜索变化槽
-    void UpdateLogMsgSearchContents();
+    // 更新搜索栏
+    void UpdateSwitchSearchSettings(QComboBox *searchBox, QString searchTarget);
 
     // 更新pie和bar图
     void UpdatePieBarSettingsSlice(QPieSlice *slice);
     void UpdatePieBarSettingsString(QString sliceLabel);
 
-    // 得到所有logMsg或platformVer
-    const QStringList AllLogTargetList(QString logTarget);
+    // 更新logMsg或platformVer搜索列表
+    void UpdateLogTargetList(QString logTarget);
 
-    //
+    // 按日期查询
     void QueryByDate();
 
 public:
@@ -78,6 +77,8 @@ public:
 
 private:
     QString m_logLevel;
+    QStringList m_logMsgList;
+    QStringList m_platformVerList;
     int m_grade;
 
     KibanaDatabase m_kibanaDatabase;
@@ -104,7 +105,7 @@ private:
     QSpinBox *m_logMsgLimit;
 
     QComboBox *m_logMsgSearch;
-    QComboBox *m_logLevelSearch;
+    QComboBox *m_platformVerSearch;
 };
 
 #endif // MAINWIDGET_H
