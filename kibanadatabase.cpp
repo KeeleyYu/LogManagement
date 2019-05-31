@@ -102,7 +102,7 @@ bool KibanaDatabase::InsertDatabase(QJsonObject rootObj) {
 }
 
 bool KibanaDatabase::CreateDatabase() {
-    // create database
+    // 创建数据库
     m_sqlDatabase = QSqlDatabase::addDatabase("QSQLITE");
     m_sqlDatabase.setDatabaseName(databaseName);
     if (!m_sqlDatabase.open()) {
@@ -110,7 +110,7 @@ bool KibanaDatabase::CreateDatabase() {
         return false;
     }
 
-    // create table
+    // 创建表
     QSqlQuery jsonQuery;
     if (!jsonQuery.exec("create table " + tableName + " ("
                    "_index varchar(50),"

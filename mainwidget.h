@@ -56,17 +56,18 @@ public Q_SLOTS:
     // logMsg Top显示槽
     void UpdateSwitchLogMsgTopSettings();
 
+    // 更新搜索
     void UpdateSwitchPlatformVerSearchSettings();
     void UpdateSwitchLogMsgSearchSettings();
 
-    // 更新搜索栏
-    void UpdateSwitchSearchSettings(QComboBox *searchBox, QString searchTarget);
+    // 更新搜索下拉栏
+    void UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget);
 
     // 更新pie和bar图
     void UpdatePieBarSettingsSlice(QPieSlice *slice);
-    void UpdatePieBarSettingsString(QString sliceLabel);
+    void UpdatePieBarSettingsString(QString sliceLabel, QString logTarget);
 
-    // 更新logMsg或platformVer搜索列表
+    // 更新logMsg或platformVer搜索列表,logTarget为logMsg或platformVer
     void UpdateLogTargetList(QString logTarget);
 
     // 按日期查询
@@ -79,7 +80,6 @@ private:
     QString m_logLevel;
     QStringList m_logMsgList;
     QStringList m_platformVerList;
-    int m_grade;
 
     KibanaDatabase m_kibanaDatabase;
 
@@ -100,6 +100,7 @@ private:
     QButtonGroup *m_logLevelGroup;
     QRadioButton *m_errorRadioButton;
     QRadioButton *m_warningRadioButton;
+    QRadioButton *m_infoRadioButton;
 
     QCheckBox *m_logMsgLimitInvisible;
     QSpinBox *m_logMsgLimit;
