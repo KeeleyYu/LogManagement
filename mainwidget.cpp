@@ -63,16 +63,16 @@ MainWidget::MainWidget(QWidget *parent)
     m_logLevelGroup->addButton(m_infoRadioButton, 2);
     m_logLevelGroup->addButton(m_allRadioButton, 3);
 
-    // 创建logMsg对比键
-    m_logMsgLimitInvisible = new QCheckBox();
-    m_logMsgLimitInvisible->setCheckState(Qt::Checked);
+    // 创建logMsg change和 logMsg top对比键
+    m_logMsgChangeEnable = new QCheckBox();
+    m_logMsgTopEnable = new QCheckBox();
 
-    m_logMsgLimit = new QSpinBox();
-    m_logMsgLimit->setMinimum(0);
-    m_logMsgLimit->setMaximum(10);
-    m_logMsgLimit->setSingleStep(1);
-    m_logMsgLimit->setValue(0);
-    m_logMsgLimit->setReadOnly(true);
+    m_logMsgTop = new QSpinBox();
+    m_logMsgTop->setMinimum(0);
+    m_logMsgTop->setMaximum(10);
+    m_logMsgTop->setSingleStep(1);
+    m_logMsgTop->setValue(0);
+    m_logMsgTop->setReadOnly(true);
 
     // 创建logMsg检索键
     m_logMsgSearch = new QComboBox();
@@ -110,8 +110,9 @@ MainWidget::MainWidget(QWidget *parent)
     logLevelSettings->setLayout(logLevelSettingsLayout);
 
     QFormLayout *logMsgSettingsLayout = new QFormLayout();
-    logMsgSettingsLayout->addRow("Compare Top Disabled", m_logMsgLimitInvisible);
-    logMsgSettingsLayout->addRow("Compare Top", m_logMsgLimit);
+    logMsgSettingsLayout->addRow("Compare Change on/off", m_logMsgChangeEnable);
+    logMsgSettingsLayout->addRow("Compare Top on/off", m_logMsgTopEnable);
+    logMsgSettingsLayout->addRow("Compare Top", m_logMsgTop);
     QGroupBox *logMsgSettings = new QGroupBox("LogMsg");
     logMsgSettings->setLayout(logMsgSettingsLayout);
 
@@ -151,8 +152,8 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_allRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchPlatformVerSearchSettings);
-    connect(m_logMsgLimitInvisible, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogLevelSettings);
-    connect(m_logMsgLimit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(m_logMsgTopEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogLevelSettings);
+    connect(m_logMsgTop, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
@@ -171,28 +172,36 @@ void MainWidget::UpdateSwitchLogLevelSettings() {
     else if (m_logLevelGroup->checkedId() == 3)
         ;
 
-
     UpdateSearchComboBox(m_logMsgSearch, "logMsg");
     UpdateSearchComboBox(m_platformVerSearch, "platformVer");
 
-    if (!m_logMsgLimitInvisible->isChecked()) {
-        m_logMsgLimit->setReadOnly(false);
-        UpdateSwitchLogMsgTopSettings();
+    if (m_logMsgTopEnable->checkState() == Qt::Checked){
+        m_logMsgChangeEnable->setCheckState(Qt::Unchecked);
+        m_logMsgTop->setReadOnly(false);
+        UpdateLogMsgTopSettings();
+    } else if (m_logMsgChangeEnable->checkState() == Qt::Checked) {
+        m_logMsgTopEnable->setCheckState(Qt::Unchecked);
+        m_logMsgTop->setReadOnly(true);
+        UpdateLogMsgChangeSettings();
     } else {
-        m_logMsgLimit->setReadOnly(true);
+        m_logMsgTop->setReadOnly(true);
         UpdatePieBarSettingsString(m_logLevel, 1);
     }
 }
 
-void MainWidget::UpdateSwitchLogMsgTopSettings() {
+void MainWidget::UpdateLogMsgChangeSettings() {
+
+}
+
+void MainWidget::UpdateLogMsgTopSettings() {
     // bar
     QBarSeries *barSeries = new QBarSeries();
-    barSeries->setName("Top " + QString::number(m_logMsgLimit->value()) + " - bar chart");
+    barSeries->setName("Top " + QString::number(m_logMsgTop->value()) + " - bar chart");
     QBarCategoryAxis *axisX = new QBarCategoryAxis();
 
     // pie
     QPieSeries *pieSeries = new QPieSeries();
-    pieSeries->setName("Top " + QString::number(m_logMsgLimit->value()) + " - pie chart");
+    pieSeries->setName("Top " + QString::number(m_logMsgTop->value()) + " - pie chart");
 
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     // 得到各platformVer（用于插入x轴）
@@ -228,7 +237,7 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
         qDebug() << __FUNCTION__ << sqlQuery.lastError();
         return;
     }
-    for (int i(0); i < m_logMsgLimit->value(); i++) {
+    for (int i(0); i < m_logMsgTop->value(); i++) {
         if (!sqlQuery.next())
             break;
         QString thisLogMsg = sqlQuery.value(0).toString();
@@ -287,26 +296,6 @@ void MainWidget::UpdateSwitchPlatformVerSearchSettings() {
 
 void MainWidget::UpdateSwitchLogMsgSearchSettings() {
     UpdatePieBarSettingsString(m_logMsgSearch->currentText(), 3);
-}
-
-void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget) {
-    while (searchBox->count())
-        searchBox->removeItem(0);
-
-    UpdateLogTargetList(searchTarget);
-    QStringList searchList;
-    if (searchTarget == "logMsg")
-        searchList = m_logMsgList;
-    else if (searchTarget == "platformVer")
-        searchList = m_platformVerList;
-
-    searchBox->addItems(searchList);
-
-    QCompleter *completer = new QCompleter(searchList);
-    completer->setCaseSensitivity(Qt::CaseInsensitive);
-    completer->setFilterMode(Qt::MatchContains);
-    completer->setCompletionMode(QCompleter::PopupCompletion);
-    searchBox->setCompleter(completer);
 }
 
 void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
@@ -396,6 +385,26 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     // 信号
     connect(barSeries, &QBarSeries::hovered, barSeries, &QBarSeries::setLabelsVisible);
     connect(pieSeries, &QPieSeries::clicked, this, &MainWidget::UpdatePieBarSettingsSlice);
+}
+
+void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget) {
+    while (searchBox->count())
+        searchBox->removeItem(0);
+
+    UpdateLogTargetList(searchTarget);
+    QStringList searchList;
+    if (searchTarget == "logMsg")
+        searchList = m_logMsgList;
+    else if (searchTarget == "platformVer")
+        searchList = m_platformVerList;
+
+    searchBox->addItems(searchList);
+
+    QCompleter *completer = new QCompleter(searchList);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setFilterMode(Qt::MatchContains);
+    completer->setCompletionMode(QCompleter::PopupCompletion);
+    searchBox->setCompleter(completer);
 }
 
 void MainWidget::UpdateLogTargetList(QString logTarget) {
