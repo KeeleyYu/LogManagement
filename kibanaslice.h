@@ -17,6 +17,7 @@ public:
     KibanaSlice(qreal value, QString prefix, QAbstractSeries *drilldownSeries);
     virtual ~KibanaSlice();
     QAbstractSeries *drilldownSeries() const;
+    QString sliceLabel() const;
 
 public Q_SLOTS:
     void updateLabel();
@@ -24,7 +25,8 @@ public Q_SLOTS:
 
 private:
     QAbstractSeries *m_drilldownSeries;
-    QString m_prefix;
+    QString m_label;
+    QString m_showLabel;
 };
 
 #endif // KIBANASLICE_H

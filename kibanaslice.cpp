@@ -4,7 +4,7 @@ QT_CHARTS_USE_NAMESPACE
 
 KibanaSlice::KibanaSlice(qreal value, QString prefix, QAbstractSeries *drilldownSeries)
     : m_drilldownSeries(drilldownSeries),
-      m_prefix(prefix)
+      m_label(prefix)
 {
     setValue(value);
     updateLabel();
@@ -25,17 +25,19 @@ QAbstractSeries *KibanaSlice::drilldownSeries() const
 
 void KibanaSlice::updateLabel()
 {
-    QString label = m_prefix;
-    QString show_label = label;
-    show_label += QString::number(this->value());
-    show_label += ", ";
-    show_label += QString::number(this->percentage() * 100, 'f', 1);
-    show_label += "%";
-    setLabel(label);
+    QString label = m_label;
+    m_showLabel = QString::number(this->percentage() * 100, 'f', 1);
+    m_showLabel += "%, ";
+    m_showLabel += label;
+    setLabel(m_showLabel);
 }
 
 void KibanaSlice::showHighlight(bool show)
 {
     setLabelVisible(show);
     setExploded(show);
+}
+
+QString KibanaSlice::sliceLabel() const{
+    return m_label;
 }

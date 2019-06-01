@@ -64,13 +64,18 @@ public Q_SLOTS:
     void UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget);
 
     // 更新pie和bar图
+    // event:
+    // 1=得到当前logLevel下每个platformVer的总数
+    // 2=得到当前logLevel下指定platformVer的每个logMsg总数
+    // 3=得到当前logLevel下指定logMsg的每个platformVer总数
+    //
     void UpdatePieBarSettingsSlice(QPieSlice *slice);
-    void UpdatePieBarSettingsString(QString sliceLabel, QString logTarget);
+    void UpdatePieBarSettingsString(QString sliceLabel, int event);
 
     // 更新logMsg或platformVer搜索列表,logTarget为logMsg或platformVer
     void UpdateLogTargetList(QString logTarget);
 
-    // 按日期查询
+    // 按日期查询，如果本地数据库不存在则从kibana获取
     void QueryByDate();
 
 public:
@@ -101,6 +106,7 @@ private:
     QRadioButton *m_errorRadioButton;
     QRadioButton *m_warningRadioButton;
     QRadioButton *m_infoRadioButton;
+    QRadioButton *m_allRadioButton;
 
     QCheckBox *m_logMsgLimitInvisible;
     QSpinBox *m_logMsgLimit;

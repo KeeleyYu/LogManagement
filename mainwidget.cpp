@@ -54,19 +54,14 @@ MainWidget::MainWidget(QWidget *parent)
     m_errorRadioButton = new QRadioButton();
     m_warningRadioButton = new QRadioButton();
     m_infoRadioButton = new QRadioButton();
+    m_allRadioButton = new QRadioButton();
     m_errorRadioButton->setChecked(true);
 
     m_logLevelGroup = new QButtonGroup();
     m_logLevelGroup->addButton(m_errorRadioButton, 0);
     m_logLevelGroup->addButton(m_warningRadioButton, 1);
     m_logLevelGroup->addButton(m_infoRadioButton, 2);
-
-    // 创建platformVer检索键
-    m_platformVerSearch = new QComboBox();
-    m_platformVerSearch->setEditable(true);
-    m_platformVerSearch->setMaximumWidth(200);
-    UpdateLogTargetList("platformVer");
-    m_platformVerSearch->addItems(m_platformVerList);
+    m_logLevelGroup->addButton(m_allRadioButton, 3);
 
     // 创建logMsg对比键
     m_logMsgLimitInvisible = new QCheckBox();
@@ -86,6 +81,12 @@ MainWidget::MainWidget(QWidget *parent)
     UpdateLogTargetList("logMsg");
     m_logMsgSearch->addItems(m_logMsgList);
 
+    // 创建platformVer检索键
+    m_platformVerSearch = new QComboBox();
+    m_platformVerSearch->setEditable(true);
+    m_platformVerSearch->setMaximumWidth(200);
+    UpdateLogTargetList("platformVer");
+    m_platformVerSearch->addItems(m_platformVerList);
 
     // 创建formLayout
     QFormLayout *chartSettingsLayout = new QFormLayout();
@@ -104,16 +105,12 @@ MainWidget::MainWidget(QWidget *parent)
     logLevelSettingsLayout->addRow("ERROR", m_errorRadioButton);
     logLevelSettingsLayout->addRow("WARNING", m_warningRadioButton);
     logLevelSettingsLayout->addRow("INFO", m_infoRadioButton);
+    logLevelSettingsLayout->addRow("ALL(not used yet)", m_allRadioButton);
     QGroupBox *logLevelSettings = new QGroupBox("LogLevel");
     logLevelSettings->setLayout(logLevelSettingsLayout);
 
-    QFormLayout *platformVerSearchSettingsLayout = new QFormLayout();
-    platformVerSearchSettingsLayout->addRow(m_platformVerSearch);
-    QGroupBox *platformVerSearchSettings = new QGroupBox("PlatformVer Search");
-    platformVerSearchSettings->setLayout(platformVerSearchSettingsLayout);
-
     QFormLayout *logMsgSettingsLayout = new QFormLayout();
-    logMsgSettingsLayout->addRow("Compare Disabled", m_logMsgLimitInvisible);
+    logMsgSettingsLayout->addRow("Compare Top Disabled", m_logMsgLimitInvisible);
     logMsgSettingsLayout->addRow("Compare Top", m_logMsgLimit);
     QGroupBox *logMsgSettings = new QGroupBox("LogMsg");
     logMsgSettings->setLayout(logMsgSettingsLayout);
@@ -123,14 +120,19 @@ MainWidget::MainWidget(QWidget *parent)
     QGroupBox *logMsgSearchSettings = new QGroupBox("LogMsg Search");
     logMsgSearchSettings->setLayout(logMsgSearchSettingsLayout);
 
+    QFormLayout *platformVerSearchSettingsLayout = new QFormLayout();
+    platformVerSearchSettingsLayout->addRow(m_platformVerSearch);
+    QGroupBox *platformVerSearchSettings = new QGroupBox("PlatformVer Search");
+    platformVerSearchSettings->setLayout(platformVerSearchSettingsLayout);
+
     // 创建boxLayout
     QVBoxLayout *settingsLayout = new QVBoxLayout();
     settingsLayout->addWidget(chartSettings);
     settingsLayout->addWidget(dateSettings);
     settingsLayout->addWidget(logLevelSettings);
-    settingsLayout->addWidget(platformVerSearchSettings);
     settingsLayout->addWidget(logMsgSettings);
     settingsLayout->addWidget(logMsgSearchSettings);
+    settingsLayout->addWidget(platformVerSearchSettings);
     settingsLayout->addStretch();
 
     // 创建gridLayout
@@ -146,6 +148,7 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_errorRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_warningRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_infoRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
+    connect(m_allRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchPlatformVerSearchSettings);
     connect(m_logMsgLimitInvisible, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogLevelSettings);
@@ -165,6 +168,8 @@ void MainWidget::UpdateSwitchLogLevelSettings() {
         m_logLevel = "WARNING";
     else if (m_logLevelGroup->checkedId() == 2)
         m_logLevel = "INFO";
+    else if (m_logLevelGroup->checkedId() == 3)
+        ;
 
 
     UpdateSearchComboBox(m_logMsgSearch, "logMsg");
@@ -175,7 +180,7 @@ void MainWidget::UpdateSwitchLogLevelSettings() {
         UpdateSwitchLogMsgTopSettings();
     } else {
         m_logMsgLimit->setReadOnly(true);
-        UpdatePieBarSettingsString(m_logLevel, NULL);
+        UpdatePieBarSettingsString(m_logLevel, 1);
     }
 }
 
@@ -277,11 +282,11 @@ void MainWidget::UpdateSwitchLogMsgTopSettings() {
 }
 
 void MainWidget::UpdateSwitchPlatformVerSearchSettings() {
-    UpdatePieBarSettingsString(m_platformVerSearch->currentText(), "platformVer");
+    UpdatePieBarSettingsString(m_platformVerSearch->currentText(), 2);
 }
 
 void MainWidget::UpdateSwitchLogMsgSearchSettings() {
-    UpdatePieBarSettingsString(m_logMsgSearch->currentText(), "logMsg");
+    UpdatePieBarSettingsString(m_logMsgSearch->currentText(), 3);
 }
 
 void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget) {
@@ -305,28 +310,27 @@ void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget
 }
 
 void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
-    if (m_logMsgList.contains(slice->label()))
-        UpdatePieBarSettingsString(slice->label(), "logMsg");
-    else if (m_platformVerList.contains(slice->label()))
-        UpdatePieBarSettingsString(slice->label(), "platformVer");
+    KibanaSlice *Kslice = dynamic_cast<KibanaSlice*>(slice);
+    if (m_logMsgList.contains(Kslice->sliceLabel()))
+        UpdatePieBarSettingsString(Kslice->sliceLabel(), 3);
+    else if (m_platformVerList.contains(Kslice->sliceLabel()))
+        UpdatePieBarSettingsString(Kslice->sliceLabel(), 2);
     else
         qDebug() << __FUNCTION__ << " wrong!";
 
 }
 
-void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, QString logTarget) {
+void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     QString selectSql;
-    if (logTarget == NULL) {
-        // 得到各platformVer的m_logLevel总数
+    if (event == 1) {
         selectSql = "select platformVer, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel "
                             "and datestamp between :fromdate and :todate "
                             "group by platformVer";
         sqlQuery.prepare(selectSql);
-    } else if (logTarget == "platformVer") {
-        // 得到该platformVer的各logMsg个数
+    } else if (event == 2) {
         selectSql = "select logMsg, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel and "
@@ -335,8 +339,7 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, QString logTarge
                             "group by logMsg";
         sqlQuery.prepare(selectSql);
         sqlQuery.bindValue(":platformver", sliceLabel);
-    } else if (logTarget == "logMsg") {
-        // 得到该logMsg的各platformVer个数
+    } else if (event == 3) {
         selectSql = "select platformVer, count(*) "
                             "from LogInfo "
                             "where logLevel=:loglevel and "
@@ -346,7 +349,7 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, QString logTarge
         sqlQuery.prepare(selectSql);
         sqlQuery.bindValue(":logmsg", sliceLabel);
     } else {
-        qDebug() << "logTarget wrong!";
+        qDebug() << "event wrong!";
         return;
     }
     sqlQuery.bindValue(":loglevel", m_logLevel);
