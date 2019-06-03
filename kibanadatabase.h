@@ -9,6 +9,7 @@
 #include <QString>
 #include <QUrl>
 #include <QDate>
+#include <QDateTime>
 
 #include <QJsonObject>
 #include <QJsonParseError>
@@ -35,6 +36,8 @@ public:
     QString getDatabaseName() const;
     QString getTableName() const;
     QSqlDatabase getSqlDatabase() const;
+
+    void ClearOverWeekRecords();
 
 private Q_SLOTS:
     void slot_replyFinished(QNetworkReply *reply);

@@ -14,6 +14,9 @@ KibanaDatabase::~KibanaDatabase() {}
 
 void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
     m_manager = new QNetworkAccessManager();
+    // 信号
+    connect(m_manager, SIGNAL(finished(QNetworkReply *)), this, SLOT(slot_replyFinished(QNetworkReply*)));
+
     for (int i = 0; i <= fromDate.daysTo(toDate); i++) {
         QDate curDate = fromDate.addDays(i);
         if (QueryDateIsExist(curDate)) {
@@ -23,17 +26,22 @@ void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
         QString dateStr = curDate.toString("yyyy_MM_dd");
         qDebug() << "Getting data on " + dateStr + "...";
 
-        QString final_url = kibana_url + query_url + dateStr;
-        QNetworkRequest request;
-        request.setUrl(final_url);
-        request.setRawHeader("X-DATA-ID", xDataId.toLocal8Bit().data());
-
-        // 发送请求
-        m_manager->get(request);
+        QString middle_url = kibana_url + query_url + dateStr;
+        // 默认一次最多取200条，因此需要手动设置时间戳区间
+        // 假定10分钟获取一次
+        int timeInterval = 10 * 60;
+        QDateTime startTime(curDate), endTime(curDate.addDays(1));
+        for (QDateTime curTime(startTime); curTime < endTime; curTime = curTime.addSecs(timeInterval)) {
+            //qDebug() << curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z");
+            QString final_url = middle_url + " where @timestamp >= '" + curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z") + "'";
+            // 发送请求
+            QNetworkRequest request;
+            request.setUrl(final_url);
+            request.setRawHeader("X-DATA-ID", xDataId.toLocal8Bit().data());
+            m_manager->get(request);
+        }
     }
 
-    // 信号
-    connect(m_manager, SIGNAL(finished(QNetworkReply *)), this, SLOT(slot_replyFinished(QNetworkReply*)));
 }
 
 void KibanaDatabase::slot_replyFinished(QNetworkReply *reply) {
@@ -83,14 +91,16 @@ bool KibanaDatabase::InsertDatabase(QJsonObject rootObj) {
 
     QSqlQuery jsonQuery;
     QString insertSql = "INSERT INTO " + tableName +
-                        " (_id, platformVer, logLevel, logMsg, datestamp) "
-                        "VALUES(?, ?, ?, ?, ?)";
+                        " (_id, platformVer, logLevel, logMsg, timestamp, datestamp) "
+                        "VALUES(?, ?, ?, ?, ?, ?)";
     jsonQuery.prepare(insertSql);
     jsonQuery.addBindValue(rootObj.value("_id").toString());
     jsonQuery.addBindValue(subObj.value("platformVer").toString());
     jsonQuery.addBindValue(subObj.value("logLevel").toString());
     jsonQuery.addBindValue(subObj.value("logMsg").toString());
     // @timestamp:"yyyy-mm-ddThh:mm:ss.mmmZ"
+    qDebug() << (subObj.value("\@timestamp").toString());
+    jsonQuery.addBindValue(subObj.value("\@timestamp").toString());
     // _index:"log_grail_pro_cros_28762406_yyyy_mm_dd"
     jsonQuery.addBindValue(rootObj.value("_index").toString().mid(deviceName.length()));
     if (!jsonQuery.exec()) {
@@ -172,4 +182,8 @@ bool KibanaDatabase::QueryDateIsExist(QDate date) {
     if (sqlQuery.next())
         return true;
     return false;
+}
+
+void KibanaDatabase::ClearOverWeekRecords() {
+
 }

@@ -297,10 +297,10 @@ void MainWidget::UpdateLogMsgTopSettings() {
     m_barChart->addAxis(axisX, Qt::AlignBottom);
     barSeries->attachAxis(axisX);
 
-    QValueAxis *axisY = new QValueAxis();
-    m_barChart->removeAxis(m_barChart->axisY());
-    m_barChart->addAxis(axisY, Qt::AlignLeft);
-    barSeries->attachAxis(axisY);
+//    QValueAxis *axisY = new QValueAxis();
+//    m_barChart->removeAxis(m_barChart->axisY());
+//    m_barChart->addAxis(axisY, Qt::AlignLeft);
+//    barSeries->attachAxis(axisY);
 
     // 信号
     connect(barSeries, &QBarSeries::hovered, barSeries, &QBarSeries::setLabelsVisible);
@@ -389,13 +389,13 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     m_barChart->changeSeries(barSeries);
 
     // bar坐标轴设置;
-    QValueAxis *axisY = new QValueAxis();
-    m_barChart->removeAxis(m_barChart->axisY());
-    m_barChart->addAxis(axisY, Qt::AlignLeft);
+//    QValueAxis *axisY = new QValueAxis();
+//    m_barChart->removeAxis(m_barChart->axisY());
+//    m_barChart->addAxis(axisY, Qt::AlignLeft);
 
-    barSeries->attachAxis(axisY);
+//    barSeries->attachAxis(axisY);
     barSeries->setBarWidth(1);
-    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsOutsideEnd);
+    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
     barSeries->setLabelsVisible(true);
 
     // 信号
