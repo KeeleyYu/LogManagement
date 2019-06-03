@@ -152,9 +152,10 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_allRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchPlatformVerSearchSettings);
-    connect(m_logMsgTopEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogLevelSettings);
+    connect(m_logMsgTopEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogMsgTopButton);
+    connect(m_logMsgChangeEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogMsgChangeButton);
     connect(m_logMsgTop, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-            this, &MainWidget::UpdateSwitchLogLevelSettings);
+            this, &MainWidget::UpdateLogMsgTopSettings);
     connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
 
@@ -175,22 +176,37 @@ void MainWidget::UpdateSwitchLogLevelSettings() {
     UpdateSearchComboBox(m_logMsgSearch, "logMsg");
     UpdateSearchComboBox(m_platformVerSearch, "platformVer");
 
-    if (m_logMsgTopEnable->checkState() == Qt::Checked){
-        m_logMsgChangeEnable->setCheckState(Qt::Unchecked);
-        m_logMsgTop->setReadOnly(false);
-        UpdateLogMsgTopSettings();
-    } else if (m_logMsgChangeEnable->checkState() == Qt::Checked) {
-        m_logMsgTopEnable->setCheckState(Qt::Unchecked);
-        m_logMsgTop->setReadOnly(true);
-        UpdateLogMsgChangeSettings();
+    if (m_logMsgChangeEnable->checkState() == Qt::Checked) {
+        UpdateSwitchLogMsgChangeButton();
+    } else if (m_logMsgTopEnable->checkState() == Qt::Checked) {
+        UpdateSwitchLogMsgTopButton();
     } else {
-        m_logMsgTop->setReadOnly(true);
         UpdatePieBarSettingsString(m_logLevel, 1);
+    }
+}
+
+void MainWidget::UpdateSwitchLogMsgChangeButton() {
+    if (m_logMsgChangeEnable->checkState() == Qt::Unchecked) {
+        UpdateSwitchLogLevelSettings();
+    } else if (m_logMsgChangeEnable->checkState() == Qt::Checked) {
+            m_logMsgTopEnable->setCheckState(Qt::Unchecked);
+            m_logMsgTop->setReadOnly(true);
+            UpdateLogMsgChangeSettings();
     }
 }
 
 void MainWidget::UpdateLogMsgChangeSettings() {
 
+}
+
+void MainWidget::UpdateSwitchLogMsgTopButton() {
+    if (m_logMsgTopEnable->checkState() == Qt::Unchecked) {
+        UpdateSwitchLogLevelSettings();
+    } else if (m_logMsgTopEnable->checkState() == Qt::Checked){
+        m_logMsgChangeEnable->setCheckState(Qt::Unchecked);
+        m_logMsgTop->setReadOnly(false);
+        UpdateLogMsgTopSettings();
+    }
 }
 
 void MainWidget::UpdateLogMsgTopSettings() {
@@ -356,35 +372,35 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     // bar
     QBarSeries *barSeries = new QBarSeries();
     barSeries->setName(sliceLabel + " - bar chart");
-    QBarSet *barSet = new QBarSet("counts");
-    QBarCategoryAxis *axisX = new QBarCategoryAxis();
 
     // 构造pie 和 bar
     while (sqlQuery.next()) {
         QString thisName = sqlQuery.value(0).toString();
         int thisCount = sqlQuery.value(1).toInt();
+
         *pieSeries << new KibanaSlice(thisCount, thisName, pieSeries);
+
+        QBarSet *barSet = new QBarSet(thisName);
         *barSet << thisCount;
-        axisX->append(thisName);
+        barSet->setLabelColor(QColor(0, 0, 0));
+        barSeries->append(barSet);
     }
-    barSeries->append(barSet);
     m_pieChart->changeSeries(pieSeries);
     m_barChart->changeSeries(barSeries);
 
-    // bar坐标轴设置
-    axisX->setLabelsAngle(-90);
-    m_barChart->removeAxis(m_barChart->axisX());
-    m_barChart->addAxis(axisX, Qt::AlignBottom);
-    barSeries->attachAxis(axisX);
-
+    // bar坐标轴设置;
     QValueAxis *axisY = new QValueAxis();
     m_barChart->removeAxis(m_barChart->axisY());
     m_barChart->addAxis(axisY, Qt::AlignLeft);
+
     barSeries->attachAxis(axisY);
+    barSeries->setBarWidth(1);
+    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsOutsideEnd);
+    barSeries->setLabelsVisible(true);
 
     // 信号
-    connect(barSeries, &QBarSeries::hovered, barSeries, &QBarSeries::setLabelsVisible);
     connect(pieSeries, &QPieSeries::clicked, this, &MainWidget::UpdatePieBarSettingsSlice);
+    connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
 }
 
 void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget) {

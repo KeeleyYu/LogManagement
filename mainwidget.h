@@ -23,7 +23,6 @@
 #include <QtCharts/QBarCategoryAxis>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
-#include <QtCharts/QLegend>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QComboBox>
@@ -43,6 +42,7 @@ QT_CHARTS_BEGIN_NAMESPACE
 class QChartView;
 class QPieSeries;
 class QPieSlice;
+class QBarSet;
 QT_CHARTS_END_NAMESPACE
 
 QT_CHARTS_USE_NAMESPACE

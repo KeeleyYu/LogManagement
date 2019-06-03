@@ -39,8 +39,20 @@ void KibanaChart::handleSliceClicked(QPieSlice *slice)
     changeSeries(kibanaSlice->drilldownSeries());
 }
 
-void KibanaChart::handleMsgSliceClicked(QPieSlice *slice) {
-
+void KibanaChart::handleBarSetHovered(bool status, int index, QBarSet *barset) {
+    QAbstractBarSeries* series = qobject_cast<QAbstractBarSeries*> (sender());
+    int legendIndex = 0;
+    for (int i(0); i < series->barSets().count(); i++) {
+        if (barset->label() == series->barSets()[i]->label()) {
+            legendIndex = i;
+            break;
+        }
+    }
+    if (status == true) {
+        this->legend()->markers()[legendIndex]->setFont(QFont("Times", 8, QFont::Bold));
+    } else {
+        this->legend()->markers()[legendIndex]->setFont(QFont());
+    }
 }
 
 bool KibanaChart::sceneEvent(QEvent *event)

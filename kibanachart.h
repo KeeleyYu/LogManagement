@@ -2,6 +2,10 @@
 #define KIBANACHART_H
 
 #include <QtCharts/QChart>
+#include <QtCharts/QLegend>
+#include <QtCharts/QLegendMarker>
+#include <QAbstractBarSeries>
+#include <QBarSet>
 
 QT_BEGIN_NAMESPACE
 class QGestureEvent;
@@ -27,7 +31,7 @@ protected:
 
 public Q_SLOTS:
     void handleSliceClicked(QPieSlice *slice);
-    void handleMsgSliceClicked(QPieSlice *slice);
+    void handleBarSetHovered(bool status, int index, QBarSet *barset);
 
 private:
     QAbstractSeries *m_currentSeries;
