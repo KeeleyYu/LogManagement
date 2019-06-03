@@ -37,7 +37,7 @@ public:
     QString getTableName() const;
     QSqlDatabase getSqlDatabase() const;
 
-    void ClearOverWeekRecords();
+    void ClearOverWeekRecords(QDate date);
 
 private Q_SLOTS:
     void slot_replyFinished(QNetworkReply *reply);
@@ -55,6 +55,8 @@ private:
     QString xDataId;
     // 设备名称：
     QString deviceName;
+    // 数据拉取时间间隔，以秒为单位
+    int timeInterval;
 
     QNetworkAccessManager *m_manager;
     QSqlDatabase m_sqlDatabase;

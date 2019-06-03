@@ -6,6 +6,8 @@ MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent), m_logLevel("ERROR") {
     // 打开数据库
     m_kibanaDatabase.CreateDatabase();
+    // 清除一周前记录
+    m_kibanaDatabase.ClearOverWeekRecords(QDate(QDate::currentDate()));
 
     // 创建pie chart
     m_pieChart = new KibanaChart();
@@ -240,8 +242,8 @@ void MainWidget::UpdateLogMsgTopSettings() {
 
     // 对个数排序得到各logMsg
     QString logMsgSql = "select logMsg, count(*) "
-                        "from LogInfo "
-                        "where logLevel=:loglevel "
+                        "from " + m_kibanaDatabase.getTableName() +
+                        " where logLevel=:loglevel "
                         "and datestamp between :fromdate and :todate "
                         "group by logMsg "
                         "order by count(*) desc";
@@ -266,8 +268,8 @@ void MainWidget::UpdateLogMsgTopSettings() {
         QSqlQuery tmp_sqlQuery;
         // 得到该logMsg的各platformVer个数
         QString selectSql = "select count(*) "
-                            "from LogInfo "
-                            "where logLevel=:loglevel and "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel and "
                             "logMsg=:logmsg "
                             "and datestamp between :fromdate and :todate "
                             "group by platformVer ";
@@ -296,14 +298,13 @@ void MainWidget::UpdateLogMsgTopSettings() {
     m_barChart->removeAxis(m_barChart->axisX());
     m_barChart->addAxis(axisX, Qt::AlignBottom);
     barSeries->attachAxis(axisX);
-
-//    QValueAxis *axisY = new QValueAxis();
-//    m_barChart->removeAxis(m_barChart->axisY());
-//    m_barChart->addAxis(axisY, Qt::AlignLeft);
-//    barSeries->attachAxis(axisY);
+    barSeries->setBarWidth(1);
+    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
+    barSeries->setLabelsVisible(true);
 
     // 信号
-    connect(barSeries, &QBarSeries::hovered, barSeries, &QBarSeries::setLabelsVisible);
+    connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
+
 }
 
 void MainWidget::UpdateSwitchPlatformVerSearchSettings() {
@@ -330,15 +331,15 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     QString selectSql;
     if (event == 1) {
         selectSql = "select platformVer, count(*) "
-                            "from LogInfo "
-                            "where logLevel=:loglevel "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel "
                             "and datestamp between :fromdate and :todate "
                             "group by platformVer";
         sqlQuery.prepare(selectSql);
     } else if (event == 2) {
         selectSql = "select logMsg, count(*) "
-                            "from LogInfo "
-                            "where logLevel=:loglevel and "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel and "
                             "platformVer=:platformver "
                             "and datestamp between :fromdate and :todate "
                             "group by logMsg";
@@ -346,8 +347,8 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
         sqlQuery.bindValue(":platformver", sliceLabel);
     } else if (event == 3) {
         selectSql = "select platformVer, count(*) "
-                            "from LogInfo "
-                            "where logLevel=:loglevel and "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel and "
                             "logMsg=:logmsg "
                             "and datestamp between :fromdate and :todate "
                             "group by platformVer";
@@ -382,18 +383,12 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
 
         QBarSet *barSet = new QBarSet(thisName);
         *barSet << thisCount;
-        barSet->setLabelColor(QColor(0, 0, 0));
+        //barSet->setLabelColor(QColor(0, 0, 0));
         barSeries->append(barSet);
     }
     m_pieChart->changeSeries(pieSeries);
     m_barChart->changeSeries(barSeries);
 
-    // bar坐标轴设置;
-//    QValueAxis *axisY = new QValueAxis();
-//    m_barChart->removeAxis(m_barChart->axisY());
-//    m_barChart->addAxis(axisY, Qt::AlignLeft);
-
-//    barSeries->attachAxis(axisY);
     barSeries->setBarWidth(1);
     barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
     barSeries->setLabelsVisible(true);
@@ -427,8 +422,8 @@ void MainWidget::UpdateLogTargetList(QString logTarget) {
     QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
     QStringList logMsgList;
     QString platformVerSql = "select distinct " + logTarget +
-                             " from LogInfo "
-                             "where logLevel=:loglevel "
+                             " from " + m_kibanaDatabase.getTableName() +
+                             " where logLevel=:loglevel "
                              "and datestamp between :fromdate and :todate "
                              "order by " + logTarget;
     sqlQuery.prepare(platformVerSql);

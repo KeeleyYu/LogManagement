@@ -8,6 +8,7 @@ KibanaDatabase::KibanaDatabase(QWidget *parent)
     deviceName = "log_grail_pro_cros_28762406_";
     query_url = "?sql=SELECT * FROM " + deviceName;
     xDataId = "cros_28762406";
+    timeInterval = 1800;
 }
 
 KibanaDatabase::~KibanaDatabase() {}
@@ -19,8 +20,8 @@ void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
 
     for (int i = 0; i <= fromDate.daysTo(toDate); i++) {
         QDate curDate = fromDate.addDays(i);
-        if (QueryDateIsExist(curDate)) {
-            //qDebug() << curDate.toString("yyyy/MM/dd") + " exists.";
+        // 当天数据必须重新拉取（因为可能随时更新，或改成前timeInterval有当天数据就不用拉取）
+        if (QueryDateIsExist(curDate) && curDate != QDate::currentDate()) {
             continue;
         }
         QString dateStr = curDate.toString("yyyy_MM_dd");
@@ -28,12 +29,10 @@ void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
 
         QString middle_url = kibana_url + query_url + dateStr;
         // 默认一次最多取200条，因此需要手动设置时间戳区间
-        // 假定10分钟获取一次
-        int timeInterval = 10 * 60;
         QDateTime startTime(curDate), endTime(curDate.addDays(1));
         for (QDateTime curTime(startTime); curTime < endTime; curTime = curTime.addSecs(timeInterval)) {
             //qDebug() << curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z");
-            QString final_url = middle_url + " where @timestamp >= '" + curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z") + "'";
+            QString final_url = middle_url + " where @timestamp <= '" + curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z") + "'";
             // 发送请求
             QNetworkRequest request;
             request.setUrl(final_url);
@@ -173,8 +172,8 @@ QSqlDatabase KibanaDatabase::getSqlDatabase() const {
 bool KibanaDatabase::QueryDateIsExist(QDate date) {
     QSqlQuery sqlQuery(databaseName);
     QStringList logMsgList;
-    QString platformVerSql = "select datestamp from LogInfo "
-                             "where datestamp=:date";
+    QString platformVerSql = "select datestamp from " + tableName +
+                             " where datestamp=:date";
     sqlQuery.prepare(platformVerSql);
     sqlQuery.bindValue(":date", date.toString("yyyy_MM_dd"));
     if (!sqlQuery.exec())
@@ -184,6 +183,13 @@ bool KibanaDatabase::QueryDateIsExist(QDate date) {
     return false;
 }
 
-void KibanaDatabase::ClearOverWeekRecords() {
-
+void KibanaDatabase::ClearOverWeekRecords(QDate date) {
+    QDate minDate(date.addDays(-8));
+    QString deleteSql = "delete from " + tableName +
+                             " where datestamp>=':date'";
+    QSqlQuery sqlQuery(databaseName);
+    sqlQuery.prepare(deleteSql);
+    sqlQuery.bindValue(":date", minDate.toString("yyyy_MM_dd"));
+    if (!sqlQuery.exec())
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
 }
