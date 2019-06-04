@@ -8,7 +8,7 @@ KibanaDatabase::KibanaDatabase(QWidget *parent)
     deviceName = "log_grail_pro_cros_28762406_";
     query_url = "?sql=SELECT * FROM " + deviceName;
     xDataId = "cros_28762406";
-    timeInterval = 1800;
+    timeInterval = 60 * 20;
 }
 
 KibanaDatabase::~KibanaDatabase() {}
@@ -30,9 +30,11 @@ void KibanaDatabase::QueryByDate(QDate fromDate, QDate toDate) {
         QString middle_url = kibana_url + query_url + dateStr;
         // 默认一次最多取200条，因此需要手动设置时间戳区间
         QDateTime startTime(curDate), endTime(curDate.addDays(1));
-        for (QDateTime curTime(startTime); curTime < endTime; curTime = curTime.addSecs(timeInterval)) {
+        for (QDateTime curTime(startTime); curTime < endTime || curTime < QDateTime::currentDateTime(); curTime = curTime.addSecs(timeInterval)) {
             //qDebug() << curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z");
-            QString final_url = middle_url + " where @timestamp <= '" + curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z") + "'";
+            QString final_url = middle_url +
+                    " where @timestamp <= '" +
+                    curTime.toString("yyyy-MM-ddTHH:mm:ss.000Z") + "'";
             // 发送请求
             QNetworkRequest request;
             request.setUrl(final_url);
@@ -54,7 +56,7 @@ void KibanaDatabase::slot_replyFinished(QNetworkReply *reply) {
     reply = nullptr;
 
     SplitJsonFromRecvData(recvData);
-    qDebug() << "Getting data finished.";
+    //qDebug() << "Getting data finished.";
 }
 
 void KibanaDatabase::SplitJsonFromRecvData(QByteArray recvData) {
@@ -98,7 +100,6 @@ bool KibanaDatabase::InsertDatabase(QJsonObject rootObj) {
     jsonQuery.addBindValue(subObj.value("logLevel").toString());
     jsonQuery.addBindValue(subObj.value("logMsg").toString());
     // @timestamp:"yyyy-mm-ddThh:mm:ss.mmmZ"
-    qDebug() << (subObj.value("\@timestamp").toString());
     jsonQuery.addBindValue(subObj.value("\@timestamp").toString());
     // _index:"log_grail_pro_cros_28762406_yyyy_mm_dd"
     jsonQuery.addBindValue(rootObj.value("_index").toString().mid(deviceName.length()));
@@ -106,6 +107,7 @@ bool KibanaDatabase::InsertDatabase(QJsonObject rootObj) {
         //qDebug() << "Insert db error!" << jsonQuery.lastError();
         return false;
     }
+    qDebug() << (subObj.value("\@timestamp").toString());
     //qDebug() << "Insert db succeed.";
     return true;
 }

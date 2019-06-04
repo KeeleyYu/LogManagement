@@ -33,6 +33,24 @@ void KibanaChart::changeSeries(QAbstractSeries *series)
     setTitle(series->name());
 }
 
+void KibanaChart::connectMarkers(QString type) {
+    const auto markers = this->legend()->markers();
+    for (QLegendMarker *marker : markers) {
+        if (type == "Bar") {
+            // Disconnect possible existing connection to avoid multiple connections
+            QObject::disconnect(marker, &QLegendMarker::clicked, this, &KibanaChart::handleBarSetMarkerClicked);
+            QObject::connect(marker, &QLegendMarker::clicked, this, &KibanaChart::handleBarSetMarkerClicked);
+        } else if (type == "Pie") {
+            // Disconnect possible existing connection to avoid multiple connections
+            QObject::disconnect(marker, &QLegendMarker::clicked, this, &KibanaChart::handlePieMarkerClicked);
+            QObject::connect(marker, &QLegendMarker::clicked, this, &KibanaChart::handlePieMarkerClicked);
+
+        } else {
+            qDebug() << __FUNCTION__;
+        }
+    }
+}
+
 void KibanaChart::handleSliceClicked(QPieSlice *slice)
 {
     KibanaSlice *kibanaSlice = static_cast<KibanaSlice *>(slice);
@@ -53,6 +71,16 @@ void KibanaChart::handleBarSetHovered(bool status, int index, QBarSet *barset) {
     } else {
         this->legend()->markers()[legendIndex]->setFont(QFont());
     }
+}
+
+void KibanaChart::handleBarSetMarkerClicked() {
+    QBarLegendMarker* marker = qobject_cast<QBarLegendMarker*> (sender());
+    marker->series()->remove(marker->barset());
+}
+
+void KibanaChart::handlePieMarkerClicked() {
+    QPieLegendMarker* marker = qobject_cast<QPieLegendMarker*> (sender());
+    marker->series()->remove(marker->slice());
 }
 
 bool KibanaChart::sceneEvent(QEvent *event)

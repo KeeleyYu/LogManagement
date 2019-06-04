@@ -4,7 +4,10 @@
 #include <QtCharts/QChart>
 #include <QtCharts/QLegend>
 #include <QtCharts/QLegendMarker>
+#include <QBarLegendMarker>
+#include <QPieLegendMarker>
 #include <QAbstractBarSeries>
+#include <QtDebug>
 #include <QBarSet>
 
 QT_BEGIN_NAMESPACE
@@ -25,6 +28,7 @@ public:
     explicit KibanaChart(QGraphicsItem *parent = 0, Qt::WindowFlags wFlags = 0);
     ~KibanaChart();
     void changeSeries(QAbstractSeries *series);
+    void connectMarkers(QString type);
 
 protected:
     bool sceneEvent(QEvent *event);
@@ -32,6 +36,8 @@ protected:
 public Q_SLOTS:
     void handleSliceClicked(QPieSlice *slice);
     void handleBarSetHovered(bool status, int index, QBarSet *barset);
+    void handleBarSetMarkerClicked();
+    void handlePieMarkerClicked();
 
 private:
     QAbstractSeries *m_currentSeries;

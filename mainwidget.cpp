@@ -107,12 +107,12 @@ MainWidget::MainWidget(QWidget *parent)
     logLevelSettingsLayout->addRow("ERROR", m_errorRadioButton);
     logLevelSettingsLayout->addRow("WARNING", m_warningRadioButton);
     logLevelSettingsLayout->addRow("INFO", m_infoRadioButton);
-    logLevelSettingsLayout->addRow("ALL(not used yet)", m_allRadioButton);
+    //logLevelSettingsLayout->addRow("ALL(not used yet)", m_allRadioButton);
     QGroupBox *logLevelSettings = new QGroupBox("LogLevel");
     logLevelSettings->setLayout(logLevelSettingsLayout);
 
     QFormLayout *logMsgSettingsLayout = new QFormLayout();
-    logMsgSettingsLayout->addRow("Compare Change on/off", m_logMsgChangeEnable);
+    //logMsgSettingsLayout->addRow("Compare Change on/off", m_logMsgChangeEnable);
     logMsgSettingsLayout->addRow("Compare Top on/off", m_logMsgTopEnable);
     logMsgSettingsLayout->addRow("Compare Top", m_logMsgTop);
     QGroupBox *logMsgSettings = new QGroupBox("LogMsg");
@@ -152,13 +152,13 @@ MainWidget::MainWidget(QWidget *parent)
     connect(m_warningRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_infoRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
     connect(m_allRadioButton, &QRadioButton::clicked, this, &MainWidget::UpdateSwitchLogLevelSettings);
-    connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_platformVerSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
             this, &MainWidget::UpdateSwitchPlatformVerSearchSettings);
     connect(m_logMsgTopEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogMsgTopButton);
     connect(m_logMsgChangeEnable, &QCheckBox::toggled, this,  &MainWidget::UpdateSwitchLogMsgChangeButton);
     connect(m_logMsgTop, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &MainWidget::UpdateLogMsgTopSettings);
-    connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_logMsgSearch, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
             this, &MainWidget::UpdateSwitchLogMsgSearchSettings);
 
     // 初始化
@@ -295,7 +295,8 @@ void MainWidget::UpdateLogMsgTopSettings() {
 
     // bar坐标轴设置
     axisX->setLabelsAngle(-90);
-    m_barChart->removeAxis(m_barChart->axisX());
+    if (m_barChart->axisX() != NULL)
+        m_barChart->removeAxis(m_barChart->axisX());
     m_barChart->addAxis(axisX, Qt::AlignBottom);
     barSeries->attachAxis(axisX);
     barSeries->setBarWidth(1);
@@ -303,6 +304,8 @@ void MainWidget::UpdateLogMsgTopSettings() {
     barSeries->setLabelsVisible(true);
 
     // 信号
+    m_barChart->connectMarkers("Bar");
+    m_pieChart->connectMarkers("Pie");
     connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
 
 }
@@ -323,7 +326,6 @@ void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
         UpdatePieBarSettingsString(Kslice->sliceLabel(), 2);
     else
         qDebug() << __FUNCTION__ << " wrong!";
-
 }
 
 void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
@@ -388,12 +390,16 @@ void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
     }
     m_pieChart->changeSeries(pieSeries);
     m_barChart->changeSeries(barSeries);
+    if (m_barChart->axisX() != NULL)
+        m_barChart->removeAxis(m_barChart->axisX());
 
     barSeries->setBarWidth(1);
     barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
     barSeries->setLabelsVisible(true);
 
     // 信号
+    m_barChart->connectMarkers("Bar");
+    m_pieChart->connectMarkers("Pie");
     connect(pieSeries, &QPieSeries::clicked, this, &MainWidget::UpdatePieBarSettingsSlice);
     connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
 }
