@@ -28,6 +28,8 @@
 #include <QComboBox>
 #include <QDateEdit>
 #include <QCompleter>
+#include <QPlainTextEdit>
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 class QRadioButton;
@@ -51,6 +53,13 @@ class MainWidget:public QWidget {
     Q_OBJECT
 
 public Q_SLOTS:
+    // 更新显示图， event:
+    // 1=得到当前logLevel下每个platformVer的总数
+    // 2=得到当前logLevel下指定platformVer的每个logMsg总数，更新变化栏
+    // 3=得到当前logLevel下指定logMsg的每个platformVer总数
+    void UpdatePieBarSettingsSlice(QPieSlice *slice);
+    void UpdatePieBarSettingsString(QString sliceLabel, int event);
+
     // 更新logLevel变化槽
     void UpdateSwitchLogLevelSettings();
 
@@ -66,18 +75,13 @@ public Q_SLOTS:
     // 更新搜索
     void UpdateSwitchPlatformVerSearchSettings();
     void UpdateSwitchLogMsgSearchSettings();
-
-    // 更新显示图， event:
-    // 1=得到当前logLevel下每个platformVer的总数
-    // 2=得到当前logLevel下指定platformVer的每个logMsg总数
-    // 3=得到当前logLevel下指定logMsg的每个platformVer总数
-    void UpdatePieBarSettingsSlice(QPieSlice *slice);
-    void UpdatePieBarSettingsString(QString sliceLabel, int event);
-
     // 更新logMsg或platformVer搜索下拉栏
     void UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget);
     // 更新logMsg或platformVer搜索列表
     void UpdateLogTargetList(QString logTarget);
+
+    // 更新platformVer变化栏
+    void UpdatePlatformVerChangesSettings(QString platformVer);
 
     // 按日期查询，如果本地数据库不存在则从kibana获取
     void QueryByDate();
@@ -118,6 +122,8 @@ private:
 
     QComboBox *m_logMsgSearch;
     QComboBox *m_platformVerSearch;
+
+    QPlainTextEdit *m_platformVerChanges;
 };
 
 #endif // MAINWIDGET_H

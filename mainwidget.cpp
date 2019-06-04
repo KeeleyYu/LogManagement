@@ -90,6 +90,13 @@ MainWidget::MainWidget(QWidget *parent)
     UpdateLogTargetList("platformVer");
     m_platformVerSearch->addItems(m_platformVerList);
 
+    // 创建platformVer变化状态栏
+    m_platformVerChanges = new QPlainTextEdit();
+    m_platformVerChanges->setPlainText("cvte kibana");
+    m_platformVerChanges->setReadOnly(true);
+    m_platformVerChanges->setMaximumWidth(200);
+    m_platformVerChanges->setMinimumHeight(350);
+
     // 创建formLayout
     QFormLayout *chartSettingsLayout = new QFormLayout();
     chartSettingsLayout->addRow(m_refreshPushButton);
@@ -128,6 +135,11 @@ MainWidget::MainWidget(QWidget *parent)
     QGroupBox *platformVerSearchSettings = new QGroupBox("PlatformVer Search");
     platformVerSearchSettings->setLayout(platformVerSearchSettingsLayout);
 
+    QFormLayout *platformVerChangesSettingsLayout = new QFormLayout();
+    platformVerChangesSettingsLayout->addRow(m_platformVerChanges);
+    QGroupBox *platformVerChangesSettings = new QGroupBox("PlatformVer Changes");
+    platformVerChangesSettings->setLayout(platformVerChangesSettingsLayout);
+
     // 创建boxLayout
     QVBoxLayout *settingsLayout = new QVBoxLayout();
     settingsLayout->addWidget(chartSettings);
@@ -136,6 +148,7 @@ MainWidget::MainWidget(QWidget *parent)
     settingsLayout->addWidget(logMsgSettings);
     settingsLayout->addWidget(logMsgSearchSettings);
     settingsLayout->addWidget(platformVerSearchSettings);
+    settingsLayout->addWidget(platformVerChangesSettings);
     settingsLayout->addStretch();
 
     // 创建gridLayout
@@ -143,6 +156,9 @@ MainWidget::MainWidget(QWidget *parent)
     baseLayout->addLayout(settingsLayout, 0, 0);
     baseLayout->addWidget(m_barChartView, 0, 1);
     baseLayout->addWidget(m_pieChartView, 0, 2);
+    baseLayout->setColumnStretch(0, 0);
+    baseLayout->setColumnStretch(1, 1);
+    baseLayout->setColumnStretch(2, 1);
     setLayout(baseLayout);
 
     // 信号
@@ -163,6 +179,92 @@ MainWidget::MainWidget(QWidget *parent)
 
     // 初始化
     UpdateSwitchLogLevelSettings();
+}
+
+void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
+    KibanaSlice *Kslice = dynamic_cast<KibanaSlice*>(slice);
+    if (m_logMsgList.contains(Kslice->sliceLabel()))
+        UpdatePieBarSettingsString(Kslice->sliceLabel(), 3);
+    else if (m_platformVerList.contains(Kslice->sliceLabel()))
+        UpdatePieBarSettingsString(Kslice->sliceLabel(), 2);
+    else
+        qDebug() << __FUNCTION__ << " wrong!";
+}
+
+void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
+    QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
+    QString selectSql;
+    if (event == 1) {
+        selectSql = "select platformVer, count(*) "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel "
+                            "and datestamp between :fromdate and :todate "
+                            "group by platformVer";
+        sqlQuery.prepare(selectSql);
+    } else if (event == 2) {
+        UpdatePlatformVerChangesSettings(sliceLabel);
+        selectSql = "select logMsg, count(*) "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel and "
+                            "platformVer=:platformver "
+                            "and datestamp between :fromdate and :todate "
+                            "group by logMsg";
+        sqlQuery.prepare(selectSql);
+        sqlQuery.bindValue(":platformver", sliceLabel);
+    } else if (event == 3) {
+        selectSql = "select platformVer, count(*) "
+                            "from " + m_kibanaDatabase.getTableName() +
+                            " where logLevel=:loglevel and "
+                            "logMsg=:logmsg "
+                            "and datestamp between :fromdate and :todate "
+                            "group by platformVer";
+        sqlQuery.prepare(selectSql);
+        sqlQuery.bindValue(":logmsg", sliceLabel);
+    } else {
+        qDebug() << "event wrong!";
+        return;
+    }
+    sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
+    if (!sqlQuery.exec()) {
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
+        return;
+    }
+
+    // pie
+    QPieSeries *pieSeries = new QPieSeries();
+    pieSeries->setName(sliceLabel + " - pie chart");
+
+    // bar
+    QBarSeries *barSeries = new QBarSeries();
+    barSeries->setName(sliceLabel + " - bar chart");
+
+    // 构造pie 和 bar
+    while (sqlQuery.next()) {
+        QString thisName = sqlQuery.value(0).toString();
+        int thisCount = sqlQuery.value(1).toInt();
+
+        *pieSeries << new KibanaSlice(thisCount, thisName, pieSeries);
+
+        QBarSet *barSet = new QBarSet(thisName);
+        *barSet << thisCount;
+        barSeries->append(barSet);
+    }
+    m_pieChart->changeSeries(pieSeries);
+    m_barChart->changeSeries(barSeries);
+    if (m_barChart->axisX() != NULL)
+        m_barChart->removeAxis(m_barChart->axisX());
+
+    barSeries->setBarWidth(1);
+    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
+    barSeries->setLabelsVisible(true);
+
+    // 信号
+    m_barChart->connectMarkers("Bar");
+    m_pieChart->connectMarkers("Pie");
+    connect(pieSeries, &QPieSeries::clicked, this, &MainWidget::UpdatePieBarSettingsSlice);
+    connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
 }
 
 void MainWidget::UpdateSwitchLogLevelSettings() {
@@ -318,92 +420,6 @@ void MainWidget::UpdateSwitchLogMsgSearchSettings() {
     UpdatePieBarSettingsString(m_logMsgSearch->currentText(), 3);
 }
 
-void MainWidget::UpdatePieBarSettingsSlice(QPieSlice *slice) {
-    KibanaSlice *Kslice = dynamic_cast<KibanaSlice*>(slice);
-    if (m_logMsgList.contains(Kslice->sliceLabel()))
-        UpdatePieBarSettingsString(Kslice->sliceLabel(), 3);
-    else if (m_platformVerList.contains(Kslice->sliceLabel()))
-        UpdatePieBarSettingsString(Kslice->sliceLabel(), 2);
-    else
-        qDebug() << __FUNCTION__ << " wrong!";
-}
-
-void MainWidget::UpdatePieBarSettingsString(QString sliceLabel, int event) {
-    QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
-    QString selectSql;
-    if (event == 1) {
-        selectSql = "select platformVer, count(*) "
-                            "from " + m_kibanaDatabase.getTableName() +
-                            " where logLevel=:loglevel "
-                            "and datestamp between :fromdate and :todate "
-                            "group by platformVer";
-        sqlQuery.prepare(selectSql);
-    } else if (event == 2) {
-        selectSql = "select logMsg, count(*) "
-                            "from " + m_kibanaDatabase.getTableName() +
-                            " where logLevel=:loglevel and "
-                            "platformVer=:platformver "
-                            "and datestamp between :fromdate and :todate "
-                            "group by logMsg";
-        sqlQuery.prepare(selectSql);
-        sqlQuery.bindValue(":platformver", sliceLabel);
-    } else if (event == 3) {
-        selectSql = "select platformVer, count(*) "
-                            "from " + m_kibanaDatabase.getTableName() +
-                            " where logLevel=:loglevel and "
-                            "logMsg=:logmsg "
-                            "and datestamp between :fromdate and :todate "
-                            "group by platformVer";
-        sqlQuery.prepare(selectSql);
-        sqlQuery.bindValue(":logmsg", sliceLabel);
-    } else {
-        qDebug() << "event wrong!";
-        return;
-    }
-    sqlQuery.bindValue(":loglevel", m_logLevel);
-    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
-    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
-    if (!sqlQuery.exec()) {
-        qDebug() << __FUNCTION__ << sqlQuery.lastError();
-        return;
-    }
-
-    // pie
-    QPieSeries *pieSeries = new QPieSeries();
-    pieSeries->setName(sliceLabel + " - pie chart");
-
-    // bar
-    QBarSeries *barSeries = new QBarSeries();
-    barSeries->setName(sliceLabel + " - bar chart");
-
-    // 构造pie 和 bar
-    while (sqlQuery.next()) {
-        QString thisName = sqlQuery.value(0).toString();
-        int thisCount = sqlQuery.value(1).toInt();
-
-        *pieSeries << new KibanaSlice(thisCount, thisName, pieSeries);
-
-        QBarSet *barSet = new QBarSet(thisName);
-        *barSet << thisCount;
-        //barSet->setLabelColor(QColor(0, 0, 0));
-        barSeries->append(barSet);
-    }
-    m_pieChart->changeSeries(pieSeries);
-    m_barChart->changeSeries(barSeries);
-    if (m_barChart->axisX() != NULL)
-        m_barChart->removeAxis(m_barChart->axisX());
-
-    barSeries->setBarWidth(1);
-    barSeries->setLabelsPosition(QAbstractBarSeries::LabelsInsideEnd);
-    barSeries->setLabelsVisible(true);
-
-    // 信号
-    m_barChart->connectMarkers("Bar");
-    m_pieChart->connectMarkers("Pie");
-    connect(pieSeries, &QPieSeries::clicked, this, &MainWidget::UpdatePieBarSettingsSlice);
-    connect(barSeries, &QBarSeries::hovered, m_barChart, &KibanaChart::handleBarSetHovered);
-}
-
 void MainWidget::UpdateSearchComboBox(QComboBox *searchBox, QString searchTarget) {
     while (searchBox->count())
         searchBox->removeItem(0);
@@ -447,6 +463,85 @@ void MainWidget::UpdateLogTargetList(QString logTarget) {
         m_logMsgList = logMsgList;
     else if (logTarget == "platformVer")
         m_platformVerList = logMsgList;
+}
+
+void MainWidget::UpdatePlatformVerChangesSettings(QString platformVer) {
+    m_platformVerChanges->clear();
+    m_platformVerChanges->setPlainText("###Current version###");
+    m_platformVerChanges->appendPlainText(platformVer);
+
+    QMap<QString, int> platformVerChangesMap;
+    QSqlQuery sqlQuery(m_kibanaDatabase.getDatabaseName());
+
+    // 当前版本logMsg统计
+    QString selectSql = "select logMsg, count(*) "
+                        "from " + m_kibanaDatabase.getTableName() +
+                        " where logLevel=:loglevel and "
+                        "platformVer=:platformVer "
+                        "and datestamp between :fromdate and :todate "
+                        "group by logMsg";
+    sqlQuery.prepare(selectSql);
+    sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":platformVer", platformVer);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
+    if (!sqlQuery.exec()) {
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
+        return;
+    }
+    while (sqlQuery.next()) {
+        QString thisName = sqlQuery.value(0).toString();
+        int thisCount = sqlQuery.value(1).toInt();
+        platformVerChangesMap[thisName] = thisCount;
+    }
+    if (m_platformVerList.indexOf(platformVer) == 0) {
+        m_platformVerChanges->appendPlainText("###NEW###");
+        for (QMap<QString, int>::iterator it = platformVerChangesMap.begin(); it != platformVerChangesMap.end(); it++) {
+            m_platformVerChanges->appendPlainText("LogMsg:" + it.key());
+            m_platformVerChanges->appendPlainText("Number:" + QString::number(it.value()));
+        }
+        return;
+    }
+
+    // 上一版本logMsg统计
+    QStringList solvedlist, oldlist;
+    platformVer = m_platformVerList[m_platformVerList.indexOf(platformVer) - 1];
+    selectSql = "select logMsg, count(*) "
+                        "from " + m_kibanaDatabase.getTableName() +
+                        " where logLevel=:loglevel and "
+                        "platformVer=:platformVer "
+                        "and datestamp between :fromdate and :todate "
+                        "group by logMsg";
+    sqlQuery.prepare(selectSql);
+    sqlQuery.bindValue(":loglevel", m_logLevel);
+    sqlQuery.bindValue(":platformVer", platformVer);
+    sqlQuery.bindValue(":fromdate", m_minimumDateEdit->date().toString("yyyy_MM_dd"));
+    sqlQuery.bindValue(":todate", m_maximumDateEdit->date().toString("yyyy_MM_dd"));
+    if (!sqlQuery.exec()) {
+        qDebug() << __FUNCTION__ << sqlQuery.lastError();
+        return;
+    }
+    while (sqlQuery.next()) {
+        QString thisName = sqlQuery.value(0).toString();
+        int thisCount = sqlQuery.value(1).toInt();
+        if (!platformVerChangesMap.contains(thisName))
+            solvedlist << "LogMsg:" + thisName << "Number:" + QString::number(thisCount);
+        else
+            oldlist << "LogMsg:" + thisName << "Number:" + QString::number(thisCount);
+    }
+    if (platformVerChangesMap.size() != 0) {
+        m_platformVerChanges->appendPlainText("###NEW###");
+        for (QMap<QString, int>::iterator it = platformVerChangesMap.begin(); it != platformVerChangesMap.end(); it++){
+            m_platformVerChanges->appendPlainText("LogMsg:" + it.key());
+            m_platformVerChanges->appendPlainText("Number:" + QString::number(it.value()));
+        }
+    }
+    m_platformVerChanges->appendPlainText("###SOLVED###");
+    for (QString str: solvedlist)
+        m_platformVerChanges->appendPlainText(str);
+    m_platformVerChanges->appendPlainText("###OLD###");
+    for (QString str: oldlist)
+        m_platformVerChanges->appendPlainText(str);
 }
 
 void MainWidget::QueryByDate() {
